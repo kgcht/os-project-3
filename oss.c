@@ -80,4 +80,88 @@ void cleanup(void) {
 
   while (wait(NULL) > 0);
 
-  if (clock_ptr)
+  if (clock_ptr) shmdt(clock_ptr);
+  if (shmId != -1) shmctl(shmId, IPC_RMID, NULL);
+  if (msgId != -1) msgctl(msgId, IPC_RMID, NULL);
+  if (logFp) fclose(logFp);
+}
+
+void signalHandler(int sig) {
+  (void)sig;
+  logAndPrint("\nOSS: Signal received, cleaning up.\n");
+  cleanup();
+  exit(0);
+}
+
+void initProcessTable(void) {
+  memset(processTable, 0, sizeof(processTable));
+}
+
+void printProcessTable(void) {
+  logAndPrint("OSS PID:%d SysClockS: %d SysclockNano: %d\n", getpid(), clock_ptr -> seconds, clock_ptr -> nanoseconds);
+  logAndPrint("Process Table:\n");
+  logAndPrint("%-6s %-8s %-7s %-8s %-8s %-10s %-10s %-12s\n", "Entry", "Occupied", "PID", "StartS", "StartN", "EndingTS", "EndingTN", "MessagesSent");
+  for (int i = 0; i < MAX_PROCESSES; i++) {
+    logAndPrint("%-6d %-8d %-7d %-8d %-8d %-10d %-10d %-12d\n",
+      i,
+      processTable[i].occupied,
+      processTable[i].pid,
+      processTable[i].startSeconds,
+      processTable[i].startNano,
+      processTable[i].endingTimeSeconds,
+      processTable[i].endingTimeNano,
+      processTable[i].messagesSent);
+  }
+}
+
+void incrementClock(int numChildren) {
+  int inc = (numChildren > 0) ? (250000000 / numChildren) : 250000000;
+  clock_ptr -> nanoseconds += inc;
+  if (clock_ptr -> nanoseconds >= NANO_PER_SEC) {
+    clock_ptr -> seconds++;
+    clock_ptr -> nanoseconds -= NANO_PER_SEC;
+  }
+}
+
+int findFreeSlot(void) {
+  for (int i = 0; i < MAX_PROCESSES; i++)
+    if (!processTable[i].occupied) return i;
+  return -1;
+}
+
+int countActiveChildren(void) {
+  int count = 0;
+  for (int i = 0; i < MAX_PROCESSES; i++)
+    if (processTable[i].occupied) count++;
+  return count;
+}
+
+void updatePCBOnLaunch(int slot, pid_t pid, int termSec, int termNano, int numActive) {
+  processTable[slot].occupied = 1;
+  processTable[slot].pid = pid;
+  processTable[slot].startSeconds = clock_ptr -> seconds;
+  processTable[slot].startNano = clock_ptr -> nanoseconds;
+  processTable[slot].messagesSent = 0;
+
+int estEndNano = clock_ptr -> nanoseconds + termNano * numActive;
+int estEndSec = clock_ptr -> seconds + termSec * numActive;
+if (estEndNano >= NANO_PER_SEC) {
+  estEndSec++;
+  estEndNano -= NANO_PER_SEC;
+}
+processTable[slot].endingTimeSeconds = estEndSec;
+processTable[slot].endingTimeNano = estEndNano;
+}
+
+void clearPCBSlot(int slot) {
+  memset(&processTable[slot], 0, sizeof(PCB));
+}
+
+int findSlotByPid(pid_t pid) {
+  for (int i = 0; i < MAX_PROCESSES; i++;)
+    if (processTable[i].occupied && processTable[i].pid == pid)
+      return i;
+  return -1;
+}
+
+int main(int argc, char *argv[]) {
