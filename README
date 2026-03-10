@@ -33,6 +33,10 @@ Files:
 
 Generative AI used: Claude
 Prompts used:
-- Asked for explanation of message queue round-robin coordination
+- "Explanation of message queue round-robin coordination"
+- "Can you help me with the structure of oss file?"
 
-I found AI to be helpful in assisting with this project. Claude explained key concepts including the round-robin cooridnation loop, and dynamic clock incrementing. It also assisted with structuring parts of my code properly. I understand how all the parts of my code work and was able to test and verify the functionality independently.
+I found AI to be helpful in assisting with this project. 
+Claude explained key concepts including the round-robin cooridnation loop, and dynamic clock incrementing. 
+It also assisted with structuring parts of my code properly. 
+I understand how all the parts of my code work and was able to test and verify the functionality independently.
