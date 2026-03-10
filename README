@@ -5,8 +5,8 @@ Environment: Linux, vim/nano, opsys server
 How to compile the project:
   Type 'make'
 
-Example of how to run the project:
-  ./oss -n 5 -s 3 -t 4 -i 0.5 -f log.txt
+How to run the project:
+  ./oss [-h] [-n proc] [-s simul] [-t timelimitForChildren] [-i fractionOfSecond] [-f logfile]
 
 Options:
 -h    Print help message
@@ -25,8 +25,14 @@ The clock is still in shared memory. oss terminates after 60 real seconds (SIGAL
 Outstanding issues:
 None known.
 
+Files:
+- oss.c: Operating system simulator (parent process)
+- worker.c: Worker process (child process)
+- Makefile: Build configuration
+- README: This file
+
 Generative AI used: Claude
 Prompts used:
 - Asked for explanation of message queue round-robin coordination
 
-I found AI to be helpful in assisting with this project.
+I found AI to be helpful in assisting with this project. Claude explained key concepts including the round-robin cooridnation loop, and dynamic clock incrementing. It also assisted with structuring parts of my code properly. I understand how all the parts of my code work and was able to test and verify the functionality independently.
