@@ -1,0 +1,32 @@
+Name: Kayla Gaynor
+Date: March 2026
+Environment: Linux, vim/nano, opsys server
+
+How to compile the project:
+  Type 'make'
+
+Example of how to run the project:
+  ./oss -n 5 -s 3 -t 4 -i 0.5 -f log.txt
+
+Options:
+-h    Print help message
+-n proc    Total number of worker processes to launch (default: 5)
+-s simul    Max simultaneously running workers (default: 3)
+-t timelimitForChildren    Upper bound in seconds for how long a child runs (default: 5)
+-i fractionOfSecond    Simulated-time interval between launching new children (default: 1.0)
+-f logfile    Log file for oss output (default: oss.log)
+
+Project Description:
+This project adds message passing (System V message queues) to the P2 process simulator.
+Oss launches worker children and coordinates them via a message queue in round-robin order.
+Workers block on msgrcv until oss sends them a turnm then check the simulated clock and reply with 1 (still running) or 0 (terminating). The process table is now local to oss (not shared memory).
+The clock is still in shared memory. oss terminates after 60 real seconds (SIGALRM) or when all workers have finished.
+
+Outstanding issues:
+None known.
+
+Generative AI used: Claude
+Prompts used:
+- Asked for explanation of message queue round-robin coordination
+
+I found AI to be helpful in assisting with this project.
