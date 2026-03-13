@@ -28,6 +28,7 @@ None known.
 Files:
 - oss.c: Operating system simulator (parent process)
 - worker.c: Worker process (child process)
+- shared.h
 - Makefile: Build configuration
 - README: This file
 
