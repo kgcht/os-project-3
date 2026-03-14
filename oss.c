@@ -1,4 +1,4 @@
-#include <stdio.h>
+include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -31,7 +31,7 @@ void cleanup(void) {
 
 void signalHandler(int sig) {
         fprintf(stderr, "\nOSS: Caught signal %d, cleaning up...\n", sig);
-
+        int i;
         for (int i = 0; i < PROCESS_TABLE_SIZE; i++) {
                 if (processTable[i].occupied)
                         kill(processTable[i].pid, SIGTERM);
@@ -42,8 +42,9 @@ void signalHandler(int sig) {
 
 //----Clock-----
 void incrementClock(int numChildren) {
+        int increment;
         if (numChildren < 1) numChildren;
-        int increment= 250000000 / numChildren;
+        increment= 250000000 / numChildren;
         sysClock -> nanoseconds += increment;
         if (sysClock -> nanoseconds >= 1000000000) {
                 sysClock -> seconds++;
@@ -53,13 +54,15 @@ void incrementClock(int numChildren) {
 
 //----Process Table----
 int findFreeSlot(void) {
+        int i;
         for (int i = 0; i < PROCESS_TABLE_SIZE; i++) {
                 if (!processTable[i].occupied) return i;
         }
-        return -1;
+ return -1;
 }
 
 void printProcessTable(void) {
+        int i;
         printf("OSS PID:%d SysClockS: %d SysclockNano: %d\n", getpid(), sysClock -> seconds, sysClock -> nanoseconds);
         printf("Process Table:\n");
         printf("%-6s %-8s %-6s %-8s %-8s %-10s %-10s %-12s\n",
@@ -82,9 +85,15 @@ int main(int argc, char *argv[]) {
         int s = 3;
         float t = 7.0;
         float i = 0.5;
+        float iv = 0.5;
         char logname[256] = "oss.log";
-
         int opt;
+        int slot;
+        pid_t pid;
+        Message msg;
+        char secStr[20], nanoStr[20];
+        int lifeSeconds, lifeNano;
+
         while ((opt = getopt(argc, argv, "hn:s:t:i:f:")) != -1) {
                 switch (opt) {
                         case 'h':
@@ -120,8 +129,65 @@ int main(int argc, char *argv[]) {
 
         memset(processTable, 0, sizeof(processTable));
 
-        printf("OSS: Initialized. n=%d s=%d t=%.1f i=%.2f log=%s\n", n, s, t, i, logname);
-        printf("OSS: Shared memory and message queue ready.\n");
+        slot = findFreeSlot();
+        if (slot == -1) {
+          fprintf(stderr, "OSS: No free slot in process table\n");
+          cleanup();
+          return 1;
+        }
+
+        srand(time(NULL));
+        lifeSeconds = (rand() % (int)t) + 1;
+        lifeNano = rand() % 1000000000;
+
+        pid = fork();
+        if (pid == -1) {
+          perror("fork");
+          cleanup();
+          return 1;
+        }
+
+        if (pid == 0) {
+          sprintf(secStr, "%d", lifeSeconds);
+          sprintf(nanoStr, "%d", lifeNano);
+          execl("./worker", "worker", secStr, nanoStr, NULL);
+          perror("execl");
+          exit(1);
+        }
+
+        processTable[slot].occupied = 1;
+        processTable[slot].pid = pid;
+        processTable[slot].startSeconds = sysClock -> seconds;
+        processTable[slot].startNano = sysClock -> nanoseconds;
+        processTable[slot].endingTimeSeconds = sysClock -> seconds + lifeSeconds;
+        processTable[slot].endingTimeNano = sysClock -> nanoseconds + lifeNano;
+        processTable[slot].messagesSent = 0;
+
+        printProcessTable();
+
+        incrementClock(1);
+        msg.mtype = pid;
+        msg.value = 1;
+        fprintf(logFile, "OSS: Sending message to worker 1 PID %d at time %d:%d\n", pid, sysClock -> seconds, sysClock -> nanoseconds);
+        printf("OSS: Sending message to worker 1 PID %d at time %d:%d\n", pid, sysClock -> seconds, sysClock -> nanoseconds);
+        msgsnd(msgId, &msg, sizeof(msg) - sizeof(long), 0);
+        processTable[slot].messagesSent++;
+
+        msgrcv(msgId, & msg, sizeof(msg) - sizeof(long), getpid(), 0);
+        incrementClock(1);
+        fprintf(logFile, "OSS: Receiving message from worker 1 PID %d at time %d:%d\n", pid, sysClock -> seconds, sysClock -> nanoseconds);
+        printf("OSS: Receiving message from worker 1 PID %d at time %d:%d\n", pid, sysClock -> seconds, sysClock -> nanoseconds);
+
+        if (msg.value == 0) {
+          printf("OSS: Worker %d is planning to terminate.\n", pid);
+          fprintf(logFile, "OSS: Worker %d PID %d is planning to terminate.\n", slot+1, pid);
+          wait(NULL);
+          processTable[slot].occupied = 0;
+        }
+
+        printProcessTable();
+        printf("OSS: Day 4 test complete.\n");
 
         cleanup();
         return 0;
+}
