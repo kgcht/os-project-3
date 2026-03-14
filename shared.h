@@ -18,6 +18,11 @@ typedef struct {
         int messagesSent;
 } PCB;
 
+typedef struct {
+        long mtype;
+        int value;
+} Message;
+
 #define PROCESS_TABLE_SIZE 20
 #define SHM_KEY 0x1234
 #define MSG_KEY 0x5678
