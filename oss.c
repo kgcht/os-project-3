@@ -15,13 +15,9 @@ PCB processTable[PROCESS_TABLE_SIZE];
 int shmId = -1;
 int msgId = -1;
 FILE *logFile = NULL;
-
-void cleanup(void);
-void signalHandler(int sig);
-void incrementClock(int numChildren);
-void printProcessTable(void);
-int findFreeSlot(void);
-int countActiveChildren(void);
+int launched = 0;
+int n = 5;
+int s = 3;
 
 void cleanup(void) {
         if (sysClock != NULL) shmdt(sysClock);
@@ -62,6 +58,14 @@ int findFreeSlot(void) {
          return -1;
 }
 
+int countActiveChildren(void) {
+        int i, count = 0;
+        for (i = 0; i < PROCESS_TABLE_SIZE; i++) {
+                if (processTable[i].occupied) count++;
+        }
+        return count;
+}
+
 void printProcessTable(void) {
         int i;
         printf("OSS PID:%d SysClockS: %d SysclockNano: %d\n", getpid(), sysClock -> seconds, sysClock -> nanoseconds);
@@ -71,15 +75,7 @@ void printProcessTable(void) {
                 "Entry", "Occupied", "PID", "StartS", "StartN", "EndingTS", "EndingTN", "MessagesSent");
         for (int i = 0; i < PROCESS_TABLE_SIZE; i++) {
                 printf("%-6d %-8d %-6d %-8d %-8d %-10d %-10d %-12d\n",
-                i,
-                processTable[i].occupied,
-                processTable[i].pid,
-                processTable[i].startSeconds,
-                processTable[i].startNano,
-                processTable[i].endingTimeSeconds,
-                processTable[i].endingTimeNano,
-                processTable[i].messagesSent);
-        }
+                        }
 }
 
 //--- Launch a worker ---
@@ -117,19 +113,14 @@ void launchWorker(int slot, float t) {
 }
 
 int main(int argc, char *argv[]) {
-        int n = 5;
-        int s = 3;
         float t = 7.0;
         float iv = 0.5;
         char logname[256] = "oss.log";
-        int opt;
-        int active = 0;
-        int nextChild = 0;
-        int i, slot;
-        int status;
+        int opt, active, nextChild, i, slot, status, lastPrintSecond;
         pid_t deadPid;
         Message msg;
-        int lastPrintSecond = -1;
+        nextChild = 0;
+        lastPrintSecond = -1;
 
         while ((opt = getopt(argc, argv, "hn:s:t:i:f:")) != -1) {
                 switch (opt) {
@@ -168,29 +159,38 @@ int main(int argc, char *argv[]) {
         srand(time(NULL));
 
         while (launched < n && launched < s) {
-                slot != findFreeSlot();
+                slot = findFreeSlot();
                 if (slot != -1) {
                         launchWorker(slot, t);
                         printProcessTable();
                 }
         }
 
-        if (sysClock -> seconds != lastPrintSecond) {
-                printProcessTable();
-                lastPrintSecond = sysClock -> seconds;
-        }
+        while (countActiveChildren() > 0) {
+                active = countActiveChildren();
+                incrementClock(active);
+                if (sysClock -> seconds != lastPrintSecond) {
+                        printProcessTable();
+                        lastPrintSecond = sysClock -> seconds;
+                }
 
         for (i = 0; i < PROCESS_TABLE_SIZE; i++) {
                 nextChild = (nextChild + 1) % PROCESS_TABLE_SIZE;
                 if (processTable[nextChild].occupied) break;
         }
-        if (!processTable[nextChild].occupied) break;
+        if (!processTable[nextChild].occupied) continue;
 
 msg.mtype = processTable[nextChild].pid;
 msg.value = 1;
 fprintf(logFile, "OSS: Sending message to worker %d PID %d at time %d:%d\n", nextChild, processTable[nextChild].pid, sysClock -> seconds, sysClock -> nanoseconds);
 printf("OSS: Receiving message from worker %d PID %d at time %d:%d\n", nextChild, processTable[nextChild].pid, sysClock -> seconds, sysClock -> nanoseconds);
-
+msgsnd(msgId, &msg, sizeof(msg) - sizeof(long), 0);
+processTable[nextChild].messagesSent++;
+msgrcv(msgId, &msg, sizeof(msg) - sizeof(long), getpid(), 0);
+incrementClock(active);
+fprintf(logFile, "OSS: Receiving message from worker %d PID %d at time %d:%d\n", nextChild, processTable[nextChild].pid, sysClock -> seconds, sysClock -> nanoseconds);
+printf("OSS: Receiving message from worker %d PID %d at time %d:%d\n", nextChild, processTable[nextChild].pid, sysClock -> seconds, sysClock -> nanoseconds);
+                
 if (msg.value == 0) {
         fprintf(logFile, "OSS: Worker %d PID %d is planning to terminate.\n", nextChild, processTable[nextChild].pid);
         printf("OSS: Worker %d PID %d is planning to terminate.\n", nextChild, processTable[nextChild].pid);
