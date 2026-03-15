@@ -88,7 +88,7 @@ void launchWorker(int slot, float t) {
   int lifeSeconds, lifeNano;
   char secStr[20], nanoStr[20];
 
-  lifeSeconds = (rand() % (int)t) + 1);
+  lifeSeconds = (rand() % (int)t) + 1;
   lifeNano = rand() % 1000000000;
 
   pid = fork();
