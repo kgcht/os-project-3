@@ -74,7 +74,7 @@ void printProcessTable(void) {
         printf("%-6s %-8s %-6s %-8s %-8s %-10s %-10s %-12s\n",
                 "Entry", "Occupied", "PID", "StartS", "StartN", "EndingTS", "EndingTN", "MessagesSent");
         for (int i = 0; i < PROCESS_TABLE_SIZE; i++) {
-                printf("%-6d %-8d %-6d %-8d %-8d %-10d %-10d %-12d\n",
+                printf("%-6d %-8d %-6d %-8d %-8d %-10d %-10d %-12d\n",i, processTable[i].occupied, processTable[i].pid, processTable[i].startSeconds, processTable[i].startNano, processTable[i].endingTimeSeconds, processTable[i].endingTimeNano, processTable[i].messagesSent);
                         }
 }
 
