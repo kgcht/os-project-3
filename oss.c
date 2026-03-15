@@ -86,7 +86,7 @@ void printProcessTable(void) {
 void launchWorker(int slot, float t) {
   pid_t pid;
   int lifeSeconds, lifeNano;
-  char secStr[20], nanoSte[20];
+  char secStr[20], nanoStr[20];
 
   lifeSeconds = (rand() % (int)t) + 1);
   lifeNano = rand() % 1000000000;
@@ -207,7 +207,7 @@ if (msg.value == 0) {
                         printProcessTable();
                 }
         }
-}
+  }
 }
 
 printf("\nOSS: All workers finished.\n");
