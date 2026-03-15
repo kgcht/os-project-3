@@ -18,6 +18,7 @@ FILE *logFile = NULL;
 int launched = 0;
 int n = 5;
 int s = 3;
+int totalMessages = 0;
 
 void cleanup(void) {
         if (sysClock != NULL) shmdt(sysClock);
@@ -117,10 +118,13 @@ int main(int argc, char *argv[]) {
         float iv = 0.5;
         char logname[256] = "oss.log";
         int opt, active, nextChild, i, slot, status, lastPrintSecond;
+        int nextLaunchSec, nextLaunchNano;
         pid_t deadPid;
         Message msg;
         nextChild = 0;
         lastPrintSecond = -1;
+        nextLaunchSec = 0;
+        nextLaunchNano = 0;
 
         while ((opt = getopt(argc, argv, "hn:s:t:i:f:")) != -1) {
                 switch (opt) {
@@ -166,12 +170,18 @@ int main(int argc, char *argv[]) {
                 }
         }
 
+         nextLaunchNano = (int)(iv * 1000000000);
         while (countActiveChildren() > 0) {
                 active = countActiveChildren();
                 incrementClock(active);
                 if (sysClock -> seconds != lastPrintSecond) {
                         printProcessTable();
                         lastPrintSecond = sysClock -> seconds;
+                }
+
+                for (i = 0; i < PROCESS_TABLE_SIZE; i++) {
+                        nextChild = (nextChild + 1) % PROCESS_TABLE_SIZE;
+                        if (processTable[nextChild].occupied) break;
                 }
 
         for (i = 0; i < PROCESS_TABLE_SIZE; i++) {
@@ -186,6 +196,7 @@ fprintf(logFile, "OSS: Sending message to worker %d PID %d at time %d:%d\n", nex
 printf("OSS: Receiving message from worker %d PID %d at time %d:%d\n", nextChild, processTable[nextChild].pid, sysClock -> seconds, sysClock -> nanoseconds);
 msgsnd(msgId, &msg, sizeof(msg) - sizeof(long), 0);
 processTable[nextChild].messagesSent++;
+totalMessages++;
 msgrcv(msgId, &msg, sizeof(msg) - sizeof(long), getpid(), 0);
 incrementClock(active);
 fprintf(logFile, "OSS: Receiving message from worker %d PID %d at time %d:%d\n", nextChild, processTable[nextChild].pid, sysClock -> seconds, sysClock -> nanoseconds);
@@ -212,8 +223,10 @@ if (msg.value == 0) {
 
 printf("\nOSS: All workers finished.\n");
 printf("OSS: Total workers launched: %d\n", launched);
+printf("OSS: Total messages sent: %d\n", totalMessages);
 fprintf(logFile, "\nOSS: All workers finished.\n");
 fprintf(logFile, "OSS: Total workers launched: %d\n", launched);
+fprintf(logFile, "OSS: Total messages sent: %d\n, totalMessages);
 
 cleanup();
 return 0;
